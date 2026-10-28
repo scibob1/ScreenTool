@@ -1,0 +1,63 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Decode private signing key (optional)
+        # 配置了 docs/SIGNING.md 里那 4 个 Secrets 时才会生效；没配置时这步什么也不做，
+        # 打包会自动退回仓库自带的公开密钥，不影响正常使用。
+        env:
+          STORE_B64: ${{ secrets.SIGN_STORE_BASE64 }}
+          STORE_PW: ${{ secrets.SIGN_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGN_KEY_ALIAS }}
+          KEY_PW: ${{ secrets.SIGN_KEY_PASSWORD }}
+        run: |
+          if [ -n "$STORE_B64" ]; then
+            echo "$STORE_B64" | base64 -d > app/release.keystore
+            echo "SIGN_STORE_FILE=release.keystore" >> "$GITHUB_ENV"
+            echo "SIGN_STORE_PASSWORD=$STORE_PW" >> "$GITHUB_ENV"
+            echo "SIGN_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "SIGN_KEY_PASSWORD=$KEY_PW" >> "$GITHUB_ENV"
+            echo "Using the private signing key from Secrets."
+          else
+            echo "No private signing key configured, using the bundled public keystore."
+          fi
+
+      - name: Build release APK
+        run: gradle assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/release/app-release.apk ScreenTool.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ScreenTool-apk
+          path: ScreenTool.apk
+
+      - name: Publish release (only for tags like v1.0.0)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ScreenTool.apk

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Screen Keep-On</string>
+    <string name="tile_label">Screen Keep-On</string>
+    <string name="sc_ball">Start floating ball</string>
+    <string name="sc_curtain">Start curtain</string>
+    <string name="sc_notif">Notification only</string>
+    <string name="sc_stop">Stop keep-on</string>
+    <string name="a11y_desc">Optional enhanced mode: only used to show the black curtain above other apps and to keep the service stable. It does not read or collect anything on your screen.</string>
+    <string name="sc_lock">Lock curtain</string>
+</resources>

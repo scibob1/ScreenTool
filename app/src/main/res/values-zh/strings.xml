@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">屏幕常亮</string>
+    <string name="tile_label">屏幕常亮</string>
+    <string name="sc_ball">启动悬浮球</string>
+    <string name="sc_curtain">启动悬浮幕布</string>
+    <string name="sc_notif">仅通知常亮</string>
+    <string name="sc_stop">停止常亮</string>
+    <string name="a11y_desc">可选的增强模式：仅用于在其他应用上层显示黑色幕布，并让服务更稳定。不会读取或收集你屏幕上的任何内容。</string>
+    <string name="sc_lock">上锁幕布</string>
+</resources>

@@ -1,0 +1,20 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/privacy-core/build/
+/privacy-android/build/
+/privacy-demo-host/build/
+/tools/patch/privacy-patch.zip
+/captures/
+.externalNativeBuild
+.cxx
+
+# 私有发布密钥：本地生成、通过 GitHub Actions Secrets 使用，绝不提交
+/app/release.keystore
+*.jks
+screentool-privacy-release.zip
+release/

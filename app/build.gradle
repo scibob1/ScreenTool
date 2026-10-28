@@ -1,0 +1,60 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.wave.screentool'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.wave.screentool'
+        minSdk 21
+        targetSdk 35
+        versionCode 12
+        versionName '1.5.2'
+    }
+
+    // 签名：优先使用 SIGN_* 环境变量指向的私有密钥（真正发布用，见 docs/SIGNING.md）；
+    // 没有配置时退回仓库自带的公开密钥（仅用于本地测试和自用分发，不要用它上架应用商店）。
+    signingConfigs {
+        main {
+            def envStore = System.getenv('SIGN_STORE_FILE')
+            if (envStore) {
+                storeFile file(envStore)
+                storePassword System.getenv('SIGN_STORE_PASSWORD')
+                keyAlias System.getenv('SIGN_KEY_ALIAS')
+                keyPassword System.getenv('SIGN_KEY_PASSWORD')
+            } else {
+                storeFile file('screentool.keystore')
+                storePassword 'screentool'
+                keyAlias 'screentool'
+                keyPassword 'screentool'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.main
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig signingConfigs.main
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+}

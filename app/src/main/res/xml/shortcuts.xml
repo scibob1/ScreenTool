@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="ball" android:enabled="true" android:icon="@drawable/ic_stat"
+        android:shortcutShortLabel="@string/sc_ball" android:shortcutLongLabel="@string/sc_ball">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.wave.screentool"
+            android:targetClass="com.wave.screentool.ToggleActivity">
+            <extra android:name="mode" android:value="ball" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="curtain" android:enabled="true" android:icon="@drawable/ic_stat"
+        android:shortcutShortLabel="@string/sc_curtain" android:shortcutLongLabel="@string/sc_curtain">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.wave.screentool"
+            android:targetClass="com.wave.screentool.ToggleActivity">
+            <extra android:name="mode" android:value="curtain" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="notif" android:enabled="true" android:icon="@drawable/ic_stat"
+        android:shortcutShortLabel="@string/sc_notif" android:shortcutLongLabel="@string/sc_notif">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.wave.screentool"
+            android:targetClass="com.wave.screentool.ToggleActivity">
+            <extra android:name="mode" android:value="notif" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="stop" android:enabled="true" android:icon="@drawable/ic_stat"
+        android:shortcutShortLabel="@string/sc_stop" android:shortcutLongLabel="@string/sc_stop">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.wave.screentool"
+            android:targetClass="com.wave.screentool.ToggleActivity">
+            <extra android:name="mode" android:value="stop" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="lock" android:enabled="true" android:icon="@drawable/ic_stat"
+        android:shortcutShortLabel="@string/sc_lock" android:shortcutLongLabel="@string/sc_lock">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.wave.screentool"
+            android:targetClass="com.wave.screentool.ToggleActivity">
+            <extra android:name="mode" android:value="lock" />
+        </intent>
+    </shortcut>
+</shortcuts>
