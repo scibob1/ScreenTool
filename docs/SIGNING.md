@@ -40,7 +40,7 @@ keytool -genkeypair -v \
    | `SIGN_KEY_ALIAS` | 你生成密钥时的 `-alias`（上面示例是 `screentool`） |
    | `SIGN_KEY_PASSWORD` | 你生成密钥时的 `-keypass` |
 
-3. 工作流文件 `.github/workflows/build.yml` 已经改好：如果这 4 个 Secret 都配置了，打包时会自动解码出私钥、设置好环境变量，`app/build.gradle` 检测到这些环境变量就会优先用它们签名；**没配置的话自动退回仓库自带的公开密钥**，不会导致构建失败——所以你可以随时配置，不配置也不影响现在的使用方式。
+3. 发布用的工作流文件 `.github/workflows/release.yml` 已经改好（日常编译的 `build.yml` 只用公开密钥，不处理 Secrets）：如果这 4 个 Secret 都配置了，打包时会自动解码出私钥、设置好环境变量，`app/build.gradle` 检测到这些环境变量就会优先用它们签名；**没配置的话会在日志里给出警告并退回仓库自带的公开密钥**，不会导致构建失败。想让“缺私钥就直接失败”，在仓库 Settings → Secrets and variables → Actions → **Variables** 里新建变量 `REQUIRE_PRIVATE_KEY`，值填 `true`。发布说明末尾会写明这个包是用哪把密钥签的。
 
 Secret 和仓库里的**变量（Variables）**不是一回事：Variables 是明文的、给非敏感配置用的；密码、密钥一律用 Secrets，不要用 Variables。
 

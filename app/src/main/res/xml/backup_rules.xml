@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Android 11 及以下的自动备份规则：密码哈希/盐/恢复码/失败计数（priv_cred.xml）不进云备份 -->
-<full-backup-content>
-    <exclude domain="sharedpref" path="priv_cred.xml" />
-</full-backup-content>

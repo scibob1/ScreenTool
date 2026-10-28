@@ -105,6 +105,8 @@ final class S {
             "Turn on privacy protection in Settings first.", "请先在设置里开启隐私保护。",
             "Verification works.", "验证功能正常。",
             "the privacy cover stays until you verify", "隐私遮罩会保留到你验证为止",
+            "Keep-on service (hidden)", "常亮服务（隐藏）",
+            "The curtain could not be shown. Check the floating window permission; it will retry.", "幕布没能显示。请检查悬浮窗权限，稍后会自动重试。",
 };
 
     private static HashMap<String, String> build() {
@@ -663,6 +665,9 @@ final class S {
             "Enter your recovery code first", "请先输入恢复码",
             "Remove the task card when exiting", "退出时移除任务卡片",
             "Double-tap exit on the home page. Off (recommended): the page closes and is hidden from recent apps, which keeps the floating windows safest. On: the task card is removed completely, but some systems then clear the floating windows when the screen turns on.", "主页双击退出时的行为。关闭（推荐）：页面关闭并从最近任务里隐藏，悬浮窗最安全。开启：彻底移除任务卡片，但部分系统会在亮屏时把悬浮窗一并清掉。",
+            "When off, no notification is shown: it is posted to a hidden channel, so the service still runs in the background (Android requires the service to have one). On Android 13 and later you can also deny the notification permission in system settings. If the system stops the service in the background while this is off, turn it back on.", "关闭后不会显示通知：通知被发到一个隐藏的渠道里，服务照常在后台运行（Android 要求前台服务必须带一条通知）。Android 13 及以上也可以在系统设置里拒绝通知权限。如果关闭后系统在后台停掉了服务，请重新打开。",
+            "Released under the MIT License. Source code, documentation and releases: https://github.com/scibob1/ScreenTool\nThe app does not check for updates by itself; this link is only a guide. Tap to open it.", "基于 MIT 协议开源。源码、文档和发布版本：https://github.com/scibob1/ScreenTool\n应用不会自行检查更新，这个链接只作为指引。点按打开。",
+            "No browser found. The link was copied.", "没有找到浏览器，链接已复制。",
         };
         HashMap<String, String> m = new HashMap<>(p.length);
         for (int i = 0; i + 1 < p.length; i += 2) m.put(p[i], p[i + 1]);

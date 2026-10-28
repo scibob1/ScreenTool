@@ -10,8 +10,8 @@ android {
         applicationId 'com.wave.screentool'
         minSdk 21
         targetSdk 35
-        versionCode 12
-        versionName '1.5.2'
+        versionCode 13
+        versionName '1.5.3'
     }
 
     // 签名：优先使用 SIGN_* 环境变量指向的私有密钥（真正发布用，见 docs/SIGNING.md）；
@@ -35,10 +35,10 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true
-            shrinkResources true
+            // 关闭混淆和资源压缩：包体略大，但崩溃日志可读，也避免混淆带来的奇怪问题
+            minifyEnabled false
+            shrinkResources false
             signingConfig signingConfigs.main
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
             signingConfig signingConfigs.main

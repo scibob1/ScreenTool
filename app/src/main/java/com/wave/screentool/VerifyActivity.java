@@ -42,6 +42,12 @@ public class VerifyActivity extends Activity {
     private CancellationSignal bpCancel;
     private static VerifyActivity current;   // 同一时刻只允许一个验证页
 
+    static boolean alive() {
+        VerifyActivity c = current;
+        return c != null && !c.isFinishing() && !c.done;
+    }
+
+
     static Intent intent(android.content.Context c, Protect.Purpose p, boolean forService) {
         return new Intent(c, VerifyActivity.class)
                 .putExtra(EXTRA_PURPOSE, p.name())

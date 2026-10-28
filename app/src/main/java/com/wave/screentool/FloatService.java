@@ -56,10 +56,12 @@ public class FloatService extends Service implements CurtainView.Host {
     static final String ACT_VERIFY_END = "com.wave.screentool.VERIFY_END";
     static final String ACT_LOCK = "com.wave.screentool.LOCK";
     private static final String CHANNEL = "keepon";
+    private static final String CHANNEL_HIDDEN = "keepon_hidden";   // 重要性为“无”：通知不显示，但前台服务照常运行
     private static final int NOTIF_ID = 1;
 
     static volatile boolean running;
     static volatile int lostCount;   // 悬浮窗被系统移除的次数（诊断信息里显示）
+    static volatile int curtainFails;   // 幕布没能显示的次数（诊断信息里显示）
     static volatile int fgsMode;     // 前台通知形态：0 无 1 完整 2 静默兜底（自检页显示）
 
     private static final int[] OX = {0, 1, 1, 0}, OY = {0, 0, 1, 1};   // 防烧屏微移的 4 个位置
@@ -567,19 +569,24 @@ public class FloatService extends Service implements CurtainView.Host {
      * 前台服务是否“合法”——仅有标题的极简通知会被视为幽灵服务并杀掉进程。
      */
     @SuppressWarnings("deprecation")
+    /**
+     * “显示通知”关闭时用的通知：Android 要求前台服务必须带一条通知，所以不能真的不发，
+     * 但可以发到一个“重要性=无”的渠道里，这样通知栏看不到，服务照常运行（效果和用户在系统里屏蔽该通知一样）。
+     * Android 8 以下没有渠道，只能退而求其次用最低优先级。
+     */
     private Notification buildSilentNotification() {
-        ensureChannel();
+        ensureHiddenChannel();
         int pf = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), pf);
         Notification.Builder b = Build.VERSION.SDK_INT >= 26
-                ? new Notification.Builder(this, CHANNEL) : new Notification.Builder(this);
+                ? new Notification.Builder(this, CHANNEL_HIDDEN) : new Notification.Builder(this);
         b.setSmallIcon(R.drawable.ic_stat)
                 .setContentTitle(S.t("Screen Keep-On"))
                 .setContentText(S.t("Screen keep-on is running"))
                 .setOngoing(true)
                 .setContentIntent(open)
                 .setShowWhen(false);
-        if (Build.VERSION.SDK_INT < 26) b.setPriority(Notification.PRIORITY_LOW);
+        if (Build.VERSION.SDK_INT < 26) b.setPriority(Notification.PRIORITY_MIN);
         return b.build();
     }
 
@@ -590,6 +597,23 @@ public class FloatService extends Service implements CurtainView.Host {
             ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(NOTIF_ID, n);
         } catch (Exception ignored) {
         }
+    }
+
+    private boolean hiddenChannelMade;
+
+    private void ensureHiddenChannel() {
+        if (hiddenChannelMade) return;
+        if (Build.VERSION.SDK_INT >= 26) {
+            try {
+                NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                NotificationChannel ch = new NotificationChannel(CHANNEL_HIDDEN, S.t("Keep-on service (hidden)"),
+                        NotificationManager.IMPORTANCE_NONE);
+                ch.setShowBadge(false);
+                nm.createNotificationChannel(ch);
+            } catch (Exception ignored) {
+            }
+        }
+        hiddenChannelMade = true;
     }
 
     private void ensureChannel() {
@@ -1031,6 +1055,7 @@ public class FloatService extends Service implements CurtainView.Host {
     // ---------- 悬浮球 ----------
 
     private void showBall() {
+        unstickVerifying();
         if (verifying) return;
         if (lockedNow() && !resting) {
             showCurtain();
@@ -1270,10 +1295,38 @@ public class FloatService extends Service implements CurtainView.Host {
             Protect.setLocked(this, true);   // 监听器会重建成上锁的全屏幕布
             if (curtain != null) return;
         }
+        unstickVerifying();
+        if (verifying) return;
         curtainMode = true;
         h.removeCallbacks(autoExpand);
-        removeBall();
+        // 先建幕布，建成功了再撤悬浮球：以前先撤球，一旦幕布没能显示就“球没了、幕布也没有”
         buildCurtain(false);
+        if (curtain != null) {
+            removeBall();
+        } else {
+            curtainFails++;
+            if (ball != null) {   // 幕布没出来：球保留，用户还能再点；稍后自动重试
+                curtainMode = false;
+                if (allowCurtain && cOpSec > 0) h.postDelayed(autoExpand, cOpSec * 1000L);
+            }
+            scheduleRecover();
+            long now = SystemClock.elapsedRealtime();
+            if (now - lastCurtainToast > 5000) {
+                lastCurtainToast = now;
+                Toast.makeText(this, S.t("The curtain could not be shown. Check the floating window permission; it will retry."), Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private long lastCurtainToast;
+
+    /** 验证页已经不在了、验证状态却还卡着（没收到结束回报）：别让它一直挡住幕布和悬浮球。 */
+    private void unstickVerifying() {
+        if (verifying && !VerifyActivity.alive() && overlay == null) {
+            verifying = false;
+            pendingCont = null;
+            h.removeCallbacks(verifyTimeout);
+        }
     }
 
     private boolean fullRect() {

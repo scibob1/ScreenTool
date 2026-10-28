@@ -172,7 +172,7 @@
 
 ## 十四、构建
 
-推送到 GitHub 后，**Actions → Build APK** 会自动打包，在对应运行页面最下面的 **Artifacts** 下载 `ScreenTool-apk`。打标签（如 `v1.5.0`）并推送，会自动发布到 Releases。
+推送到 GitHub 后，**Actions → Build APK** 会自动打包，在对应运行页面最下面的 **Artifacts** 下载 `ScreenTool-apk`。打标签（`v1.5.3` 或 `1.5.3` 这样的格式）并推送，或在 GitHub 的 Actions 页面手动运行 “Release APK” 并填入标签，就会自动编译并发布到 Releases，APK 名为 `ScreenTool-<标签>.apk`，发布说明取自 CHANGELOG.md 对应版本。日常推送只由 `build.yml` 编译并上传文件，不发布。已关闭混淆和资源压缩。
 
 本地构建：Android Studio 打开，或 `gradle assembleRelease`（JDK 17 + Android SDK 35，Gradle 8.9，AGP 8.7.3）。
 

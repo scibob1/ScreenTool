@@ -203,7 +203,7 @@ public class SettingsActivity extends Activity {
 
         Ui.header(ui, S.t("Notification"));
         sw(S.t("Show notification"),
-                S.t("When off the service still runs in the background but no notification appears. On Android 13 and later you can also deny the notification permission in system settings, and the service will keep running regardless."),
+                S.t("When off, no notification is shown: it is posted to a hidden channel, so the service still runs in the background (Android requires the service to have one). On Android 13 and later you can also deny the notification permission in system settings. If the system stops the service in the background while this is off, turn it back on."),
                 "notif_enabled");
         sw(S.t("Notification action buttons"),
                 S.t("Quick buttons in the notification: stop, dimmer, brighter, expand. Turn this off for a minimal notification. During an eye break, long-pressing the curtain for 5 seconds is the emergency exit."),
@@ -516,6 +516,7 @@ public class SettingsActivity extends Activity {
         sb.append("a11yConnected=").append(KeepAccessibilityService.inst != null).append('\n');
         sb.append("running=").append(FloatCtl.running()).append('\n');
         sb.append("overlayLost=").append(FloatService.lostCount).append('\n');
+        sb.append("curtainFails=").append(FloatService.curtainFails).append('\n');
         for (String k : new String[]{"use_ball", "use_curtain", "keep_method", "nowin_method", "bright_mode",
                 "start_mode", "op_sec", "ball_edge", "auto_start", "enhance", "eye_on", "notif_enabled", "vib_off", "vib_iv",
                 "pv_on", "pv_mode", "pv_locked", "pv_trig_timer", "pv_trig_screenoff", "pv_trig_leave", "pv_ui_notap",
@@ -604,8 +605,17 @@ public class SettingsActivity extends Activity {
                 S.t("• Some system apps (for example Notes) use a higher window layer and may cover or intercept the floating windows.\n• On HarmonyOS the floating windows may only appear above other apps, not on the desktop, and they can disappear when the app hosting them is cleared. The app tries to restore them automatically.\n• If you cannot see a floating window, turn on the enhanced mode.\n• Normal floating windows cannot cover the status bar; the enhanced mode can."), null);
         Ui.row(ui, S.t("Privacy protection"),
                 S.t("Settings > Privacy protection can lock the curtain full screen and protect this app's Settings, backup and protection settings. You choose how strongly: how to verify, what locks it, how it behaves, what a verification authorizes and what happens after repeated failures. Everything is off by default. It only protects this app: it cannot lock other apps, and the system can always stop or uninstall the app. Emergency release: press and hold the locked curtain; it removes the cover but does not open protected data."), null);
-        Ui.row(ui, S.t("Open source"),
-                S.t("Released under the MIT License. The source code and documentation are on the project page."), null);
+        action(S.t("Open source"),
+                S.t("Released under the MIT License. Source code, documentation and releases: https://github.com/scibob1/ScreenTool\nThe app does not check for updates by itself; this link is only a guide. Tap to open it."),
+                () -> {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/scibob1/ScreenTool")));
+                    } catch (Exception e) {
+                        ((android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(
+                                android.content.ClipData.newPlainText("url", "https://github.com/scibob1/ScreenTool"));
+                        toast(S.t("No browser found. The link was copied."));
+                    }
+                });
     }
 
     // ================= 行的构造 =================
