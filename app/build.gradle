@@ -10,8 +10,8 @@ android {
         applicationId 'com.wave.screentool'
         minSdk 21
         targetSdk 35
-        versionCode 13
-        versionName '1.5.3'
+        versionCode 14
+        versionName '1.5.4'
     }
 
     // 签名：优先使用 SIGN_* 环境变量指向的私有密钥（真正发布用，见 docs/SIGNING.md）；

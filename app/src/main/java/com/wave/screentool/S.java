@@ -668,6 +668,11 @@ final class S {
             "When off, no notification is shown: it is posted to a hidden channel, so the service still runs in the background (Android requires the service to have one). On Android 13 and later you can also deny the notification permission in system settings. If the system stops the service in the background while this is off, turn it back on.", "关闭后不会显示通知：通知被发到一个隐藏的渠道里，服务照常在后台运行（Android 要求前台服务必须带一条通知）。Android 13 及以上也可以在系统设置里拒绝通知权限。如果关闭后系统在后台停掉了服务，请重新打开。",
             "Released under the MIT License. Source code, documentation and releases: https://github.com/scibob1/ScreenTool\nThe app does not check for updates by itself; this link is only a guide. Tap to open it.", "基于 MIT 协议开源。源码、文档和发布版本：https://github.com/scibob1/ScreenTool\n应用不会自行检查更新，这个链接只作为指引。点按打开。",
             "No browser found. The link was copied.", "没有找到浏览器，链接已复制。",
+            "Test vibration", "测试震动",
+            "Vibrates once right now, the same way the screen-off reminder does, and reports the result. If this works but the reminder does not, the system is restricting background vibration: allow background activity and auto-start for this app and leave battery optimization off.", "现在立刻震动一次（和熄屏提醒用的是同一种方式）并给出结果。如果这里能震动而熄屏提醒不震，说明系统限制了后台震动：请允许本应用后台活动和自启动，并保持电池优化为不限制。",
+            "This device has no vibrator.", "这台设备没有振动马达。",
+            "Vibration was requested. If you felt nothing, check the system vibration and Do Not Disturb settings.", "已发出震动请求。如果没有感觉到震动，请检查系统的震动和勿扰设置。",
+            "Vibration failed: ", "震动失败：",
         };
         HashMap<String, String> m = new HashMap<>(p.length);
         for (int i = 0; i + 1 < p.length; i += 2) m.put(p[i], p[i + 1]);

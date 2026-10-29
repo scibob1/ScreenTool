@@ -91,7 +91,6 @@ public class VerifyActivity extends Activity {
             @Override public void ok() { succeed(); }
             @Override public void cancel() { finishWith(false); }
         });
-        FloatCtl.verifyBegin(this);   // 通知服务撤掉遮罩，避免盖住本页
         startFlow();
     }
 
@@ -111,6 +110,21 @@ public class VerifyActivity extends Activity {
         if (!done) FloatCtl.verifyEnd(this, false, purpose, forService);   // 异常结束也要让服务恢复
         S.release();
         super.onDestroy();
+    }
+
+    private boolean began;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 页面已经显示出来之后，才通知服务撤掉遮罩：中间不会露出幕布下面的内容，
+        // 也不会因为幕布先撤掉而让页面短暂看不见
+        if (!began && !done) {
+            began = true;
+            h.postDelayed(() -> {
+                if (!done) FloatCtl.verifyBegin(this);
+            }, 250);
+        }
     }
 
     @Override

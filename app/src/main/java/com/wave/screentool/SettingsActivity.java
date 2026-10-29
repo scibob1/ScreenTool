@@ -418,6 +418,9 @@ public class SettingsActivity extends Activity {
         sw(S.t("Vibrate periodically after the screen turns off"),
                 S.t("Warns you when the screen turns off. It stops when the screen turns on or you turn off keep-awake, and it also vibrates if you turn the screen off yourself. While the screen is off the CPU is kept awake so the vibration is reliable, which uses more battery. Some systems (for example HarmonyOS) also need background activity allowed for this app."),
                 "vib_off");
+        action(S.t("Test vibration"),
+                S.t("Vibrates once right now, the same way the screen-off reminder does, and reports the result. If this works but the reminder does not, the system is restricting background vibration: allow background activity and auto-start for this app and leave battery optimization off."),
+                this::testVibration);
         num(S.t("Vibration interval"), null, "vib_iv", 2, 600, " s");
         Ui.header(ui, S.t("Maintenance"));
         action(S.t("Copy diagnostics"), S.t("Copies device and permission info, handy for feedback"), this::copyDiagnostics);
@@ -517,6 +520,11 @@ public class SettingsActivity extends Activity {
         sb.append("running=").append(FloatCtl.running()).append('\n');
         sb.append("overlayLost=").append(FloatService.lostCount).append('\n');
         sb.append("curtainFails=").append(FloatService.curtainFails).append('\n');
+        sb.append("vib: screenOffEvents=").append(FloatService.screenOffEvents)
+                .append(" starts=").append(FloatService.vibStarts)
+                .append(" pulses=").append(FloatService.vibPulses)
+                .append(" alarmTicks=").append(FloatService.alarmTicks)
+                .append(" err=").append(FloatService.vibError).append('\n');
         for (String k : new String[]{"use_ball", "use_curtain", "keep_method", "nowin_method", "bright_mode",
                 "start_mode", "op_sec", "ball_edge", "auto_start", "enhance", "eye_on", "notif_enabled", "vib_off", "vib_iv",
                 "pv_on", "pv_mode", "pv_locked", "pv_trig_timer", "pv_trig_screenoff", "pv_trig_leave", "pv_ui_notap",
@@ -546,6 +554,27 @@ public class SettingsActivity extends Activity {
             if (backupBlocked(() -> startRestorePicker())) return;
             startRestorePicker();
         });
+    }
+
+    @SuppressWarnings("deprecation")
+    private void testVibration() {
+        try {
+            android.os.Vibrator v = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+            if (v == null || !v.hasVibrator()) {
+                toast(S.t("This device has no vibrator."));
+                return;
+            }
+            if (Build.VERSION.SDK_INT >= 26) {
+                v.vibrate(android.os.VibrationEffect.createOneShot(500, android.os.VibrationEffect.DEFAULT_AMPLITUDE),
+                        new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+            } else {
+                v.vibrate(500);
+            }
+            toast(S.t("Vibration was requested. If you felt nothing, check the system vibration and Do Not Disturb settings."));
+        } catch (Exception e) {
+            toast(S.t("Vibration failed: ") + e);
+        }
     }
 
     private void startRestorePicker() {

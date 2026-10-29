@@ -1,6 +1,7 @@
 package com.wave.screentool;
 
 import android.animation.ValueAnimator;
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -62,7 +63,11 @@ public class FloatService extends Service implements CurtainView.Host {
     static volatile boolean running;
     static volatile int lostCount;   // 悬浮窗被系统移除的次数（诊断信息里显示）
     static volatile int curtainFails;   // 幕布没能显示的次数（诊断信息里显示）
-    static volatile int fgsMode;     // 前台通知形态：0 无 1 完整 2 静默兜底（自检页显示）
+    static volatile int fgsMode;
+    static volatile int screenOffEvents, vibStarts, vibPulses, alarmTicks;   // 震动诊断计数
+    static volatile String vibError = "";
+    static final String ACT_VIB_TICK = "com.wave.screentool.VIB_TICK";
+    private long lastPulseAt;     // 前台通知形态：0 无 1 完整 2 静默兜底（自检页显示）
 
     private static final int[] OX = {0, 1, 1, 0}, OY = {0, 0, 1, 1};   // 防烧屏微移的 4 个位置
 
@@ -137,11 +142,11 @@ public class FloatService extends Service implements CurtainView.Host {
         pendingCont = null;
         restoreWindows();
     };
-    private final Runnable verifyLaunchWd = () -> {     // 系统验证页没能打开：不放行，保持上锁并说明
+    private final Runnable verifyLaunchWd = () -> {     // 验证页没能打开：退到悬浮窗（只验证密码时）或保持上锁并说明，绝不放行
         launching = false;
         if (!verifying) {
-            pendingCont = null;
-            Toast.makeText(FloatService.this, S.t("The system verification screen could not be opened, so the cover stays locked. Hold the curtain for the emergency release, or open the app and verify there."), Toast.LENGTH_LONG).show();
+            setCurtainInert(false);
+            showOverlayFallback();
         }
     };
     private final Runnable lockTimerRun = this::lockTimerFire;
@@ -200,13 +205,18 @@ public class FloatService extends Service implements CurtainView.Host {
             String a = i.getAction();
             if (Intent.ACTION_SCREEN_OFF.equals(a)) {
                 screenOn = false;
+                screenOffEvents++;
                 h.removeCallbacks(tick);
                 if (curShow != null) curShow.stop();
-                // 触发条件“熄屏后上锁”：必须统一走保护控制器，上锁后遮罩和解除规则都一样
-                if (Protect.armed(FloatService.this) && Prefs.getBool(FloatService.this, "pv_trig_screenoff")) {
-                    Protect.lockNow(FloatService.this, false);
-                }
+                // 震动放在最前面：后面的上锁逻辑哪怕出问题，也不能让提醒失效
                 if (cVib) startVibration();
+                // 触发条件“熄屏后上锁”：必须统一走保护控制器，上锁后遮罩和解除规则都一样
+                try {
+                    if (Protect.armed(FloatService.this) && Prefs.getBool(FloatService.this, "pv_trig_screenoff")) {
+                        Protect.lockNow(FloatService.this, false);
+                    }
+                } catch (Exception ignored) {
+                }
             } else if (Intent.ACTION_SCREEN_ON.equals(a)) {
                 screenOn = true;
                 stopVibration();
@@ -234,6 +244,11 @@ public class FloatService extends Service implements CurtainView.Host {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String act = intent == null ? null : intent.getAction();
         String mode = intent == null ? null : intent.getStringExtra("mode");
+        if (!inited && (ACT_VIB_TICK.equals(act) || ACT_VERIFY_BEGIN.equals(act) || ACT_VERIFY_END.equals(act))) {
+            // 这些只是给“已经在运行”的服务发的消息；服务不在时不要因为它们把服务拉起来
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         if (ACT_STOP.equals(act)) {
             if (inited && Protect.needVerify(this, Protect.Purpose.STOP)) {
                 // 上锁期间停止服务等于拿掉遮罩：必须先验证，不能让任何旧入口绕过
@@ -282,6 +297,9 @@ public class FloatService extends Service implements CurtainView.Host {
                 break;
             case ACT_LOCK:
                 if (Protect.armed(this)) Protect.lockNow(this, false);
+                break;
+            case ACT_VIB_TICK:
+                vibAlarmTick();
                 break;
             case ACT_VERIFY_BEGIN:
                 beginVerifyUi();
@@ -760,14 +778,19 @@ public class FloatService extends Service implements CurtainView.Host {
     private void startVibration() {
         if (vibOn) return;
         Vibrator v = vibrator();
-        if (v == null || !v.hasVibrator()) return;
+        if (v == null || !v.hasVibrator()) {
+            vibError = "no vibrator";
+            return;
+        }
         vibOn = true;
+        vibStarts++;
         h.removeCallbacks(vibRun);
         h.post(vibRun);
     }
 
     @SuppressWarnings("deprecation")
     private void pulse() {
+        lastPulseAt = SystemClock.elapsedRealtime();
         try {
             if (vibWl == null) {
                 PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
@@ -775,7 +798,8 @@ public class FloatService extends Service implements CurtainView.Host {
                 vibWl.setReferenceCounted(false);
             }
             vibWl.acquire((cVibIv + 5) * 1000L);   // 每次震动都续一次，进程被杀也会自己超时释放
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            vibError = "wakelock: " + e;
         }
         try {
             Vibrator v = vibrator();
@@ -787,13 +811,59 @@ public class FloatService extends Service implements CurtainView.Host {
             } else {
                 v.vibrate(500);
             }
+            vibPulses++;
+        } catch (Exception e) {
+            vibError = "vibrate: " + e;
+        }
+        scheduleVibAlarm();
+    }
+
+    /**
+     * 备用心跳：有些系统（荣耀/华为的省电管控）熄屏后会无视唤醒锁让 CPU 休眠，Handler 的定时器就不走了。
+     * 每次震动后再用 AlarmManager 约一个间隔后唤醒服务补一次；两条路径互相去重，谁先到谁震。
+     */
+    private void scheduleVibAlarm() {
+        try {
+            AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+            if (am == null) return;
+            int pf = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
+            PendingIntent pi = PendingIntent.getService(this, 77,
+                    new Intent(this, FloatService.class).setAction(ACT_VIB_TICK), pf);
+            long at = SystemClock.elapsedRealtime() + cVibIv * 1000L;
+            if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi);
+            } else if (Build.VERSION.SDK_INT >= 23) {
+                am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi);
+            } else {
+                am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi);
+            }
+        } catch (Exception e) {
+            vibError = "alarm: " + e;
+        }
+    }
+
+    private void cancelVibAlarm() {
+        try {
+            AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+            int pf = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
+            if (am != null) am.cancel(PendingIntent.getService(this, 77,
+                    new Intent(this, FloatService.class).setAction(ACT_VIB_TICK), pf));
         } catch (Exception ignored) {
         }
+    }
+
+    private void vibAlarmTick() {
+        alarmTicks++;
+        if (!vibOn || !inited) return;
+        // 距离上次震动已经过了大半个间隔才补震，避免和 Handler 路径各震一次
+        if (SystemClock.elapsedRealtime() - lastPulseAt >= cVibIv * 1000L * 6 / 10) pulse();
+        else scheduleVibAlarm();
     }
 
     private void stopVibration() {
         vibOn = false;
         if (h != null) h.removeCallbacks(vibRun);
+        cancelVibAlarm();
         try {
             if (vib != null) vib.cancel();
         } catch (Exception ignored) {
@@ -1524,21 +1594,30 @@ public class FloatService extends Service implements CurtainView.Host {
         if (verifying || launching || overlay != null) return;   // 已经在验证（或正在拉起验证页）：不要再弹第二个
         pendingPurpose = p;
         pendingCont = cont;
+        // 统一用验证页（Activity）：输入法在 Activity 窗口里最可靠。画在幕布上的悬浮窗里输入密码，
+        // 部分系统（实测荣耀 / Android 11）键盘刚弹起就被收起；而从通知“停止”走验证页时键盘一切正常。
+        // 趁遮罩还在（应用仍算有可见窗口）先把页面拉起；幕布先变成“不可聚焦”，让验证页能立刻拿到焦点，
+        // 等验证页画出来之后（onResume 后短暂延迟）再由它通知我们撤掉遮罩，这样中间不会露出幕布下面的内容。
+        setCurtainInert(true);
+        try {
+            startActivity(VerifyActivity.intent(this, p, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            launching = true;
+            h.removeCallbacks(verifyLaunchWd);
+            h.postDelayed(verifyLaunchWd, 3500);
+        } catch (Exception e) {
+            setCurtainInert(false);
+            showOverlayFallback();
+        }
+    }
+
+    /** 验证页拉不起来时的退路：只验证自定义密码时可以用悬浮窗；需要系统验证的不降级，保持锁定并说明。 */
+    private void showOverlayFallback() {
         String problem = Protect.methodProblem(this);
         if (problem == null && Protect.needSys(this)) {
-            // 系统验证必须由验证页承载。趁遮罩还在（应用仍算有可见窗口）先把页面拉起，再由页面通知我们撤掉遮罩。
-            try {
-                startActivity(VerifyActivity.intent(this, p, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                launching = true;
-                h.removeCallbacks(verifyLaunchWd);
-                h.postDelayed(verifyLaunchWd, 3500);
-            } catch (Exception e) {
-                pendingCont = null;
-                Toast.makeText(this, S.t("The system verification screen could not be opened, so the cover stays locked. Hold the curtain for the emergency release, or open the app and verify there."), Toast.LENGTH_LONG).show();
-            }
+            pendingCont = null;
+            Toast.makeText(this, S.t("The system verification screen could not be opened, so the cover stays locked. Hold the curtain for the emergency release, or open the app and verify there."), Toast.LENGTH_LONG).show();
             return;
         }
-        // 只验证自定义密码（或验证方式不可用：悬浮窗里显示原因，不放行）
         ensureWm();
         if (wm == null || !canShowWindow()) {
             pendingCont = null;
@@ -1549,7 +1628,7 @@ public class FloatService extends Service implements CurtainView.Host {
             @Override public void onVerified() { overlayDone(true); }
             @Override public void onCancel() { overlayDone(false); }
         });
-        setCurtainInert(true);   // 验证窗口在上面时，下面的幕布不再抢焦点/触摸，否则输入法会被反复收起
+        setCurtainInert(true);
         if (!overlay.show()) {
             setCurtainInert(false);
             overlay = null;
